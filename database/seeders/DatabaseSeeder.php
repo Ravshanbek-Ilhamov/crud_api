@@ -28,15 +28,14 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-
-        for ($i=0; $i < 60; $i++) { 
+        for ($i=0; $i < 50 ; $i++) { 
             $category = Category::inRandomOrder()->first();
-            $category->posts()->create([
-                'title' => "Post $i",
-                'description' => "Description $i",
-                'text' => "Text $i",
+            $category->products()->create([
+                'name' => "Product $i",
+                'description' => "Description $i"
             ]);
         }
+
     }
 
 }

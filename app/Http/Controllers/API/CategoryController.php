@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CategoryResource;
+use App\Http\Resources\ProductResource;
 use App\Models\Category;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Http\Request as HttpRequest;
@@ -11,28 +13,16 @@ class CategoryController extends Controller
 {
     public function index() {
 
-        $categories = Category::with('posts')->get();
-
-        $data = [
-            'categories' => $categories,
-            'status' => 'success',
-        ];
-
-        return response()->json($data);
+        $categories = Category::all();
+        return CategoryResource::collection($categories);
     }
 
     public function show(Category $category) {
 
         if (!$category) {
-            // abort(404);
             return response()->json(['message' => 'Category not found']);
         }
-
-        $data = [
-            'category' => $category,
-            'status' => 'success',
-        ];
-        return response()->json($data);
+        return new CategoryResource($category);
     }
 
     public function store(HttpRequest $request) {
@@ -45,11 +35,7 @@ class CategoryController extends Controller
             'name' => $request->name
         ]);
 
-        $data = [
-            'category' => $category,
-            'status' => 'success',
-        ];
-        return response()->json($data);
+        return new CategoryResource($category);
     }
 
     public function update(HttpRequest $request, Category $category) {
@@ -62,11 +48,7 @@ class CategoryController extends Controller
             'name' => $request->name
         ]);
 
-        $data = [
-            'category' => $category,
-            'status' => 'success',
-        ];
-        return response()->json($data);
+        return new CategoryResource($category);
     }
 
     public function posts(Category $category)
@@ -78,11 +60,21 @@ class CategoryController extends Controller
         return response()->json($data);
     }
 
+    public function products(Category $category)
+    {
+        return ProductResource::collection($category->products);
+    }
+
     public function destroy(Category $category) {
+
+        if(!$category) {
+            return response()->json(['message' => 'Category not found'], 404);
+        }
         $category->delete();
-        $data = [
+
+        return response()->json([
             'status' => 'success',
-        ];
-        return response()->json($data);
+            'message' => 'Category deleted successfully',
+        ]);
     }
 }
