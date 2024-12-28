@@ -2,14 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\UserResource;
+use App\Jobs\SendVarificationCode;
+use App\Mail\ValidationMail;
 use App\Models\User;
+use App\Models\ValidationPassword;
 use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth as FacadesAuth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
+
     public function login(Request $request) {
 
         $request->validate([
@@ -47,13 +53,27 @@ class AuthController extends Controller
             'password' => Hash::make($request->password)
         ]);
 
+        // $token = $user->createToken('auth_token')->plainTextToken;
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $randNumber = rand(100000, 999999);
+
+        ValidationPassword::create([
+            'user_id' => $user->id,
+            'password' => $randNumber
+        ]);
 
         $data = [
-            'user' => $user,
-            'token' => $token
+            'password' => $randNumber,
+            'name' => $user->name,
+            'email' => $user->email,
         ];
+
+        SendVarificationCode::dispatch($data);
+
+        $data = [
+            'message' => 'Varification code has been sent to your email',
+        ];
+
         return response()->json($data, 201);
     }
 
@@ -69,4 +89,66 @@ class AuthController extends Controller
 
     }
 
+    public function takeToken(Request $request) {
+
+        $request->validate([
+            'code' => 'required',
+            'email' => 'required|email'
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        $sentCode = ValidationPassword::where('user_id', $user->id)->first();
+
+        if ( $sentCode && ($sentCode->password == $request->code)) {
+            $token = $user->createToken('auth_token')->plainTextToken;
+            $data = [
+                'message' => 'Welcome!',
+                'user' => new UserResource($user),
+                'token' => $token
+            ];
+            return response()->json($data, 200);
+        }else{
+            return response()->json(['message' => 'Code is not correct or Register Again'], 401);
+        }
+    }
+
+    public function forgetPassword(Request $request) {
+
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user) {
+            $randNumber = rand(100000, 999999);
+
+            $data = [
+                'password' => $randNumber,
+                'name' => $user->name,
+                'email' => $user->email,
+            ];
+
+            SendVarificationCode::dispatch($data);
+
+            $user->update([
+                'password' => Hash::make($randNumber)
+            ]);
+
+            $response = [
+                'status' => 'success',
+                'message' => 'Your new password has been sent to your email'
+            ];
+            return response()->json($response, 200);
+        }else{
+            return response()->json(['message' => 'User not found'], 401);
+        }
+    }
+
+    public function authUser(){
+        return response()->json(FacadesAuth::user());
+    }
+
+    
 }
